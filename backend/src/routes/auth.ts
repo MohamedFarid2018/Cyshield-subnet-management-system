@@ -10,7 +10,8 @@ const router = Router();
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
-  skip: () => process.env.NODE_ENV === 'test',
+  // Only enforce in production — dev/test environments have no hard limit
+  skip: () => process.env.NODE_ENV !== 'production',
   message: { message: 'Too many attempts, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,

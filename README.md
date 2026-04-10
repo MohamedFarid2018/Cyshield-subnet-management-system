@@ -164,8 +164,49 @@ npm run test:integration    # integration tests only
 
 - Each test file starts with a `beforeEach` that truncates all tables and recreates three fresh users (`admin`, `user`, `otherUser`) to guarantee isolation.
 - A separate `tsconfig.test.json` extends the main config with `"types": ["jest", "node"]` and widens `rootDir` to include the `tests/` directory — the main `tsconfig.json` is unchanged so the production build is unaffected.
-- Rate limiting is bypassed in test mode (`NODE_ENV=test`) via the `skip` option on the limiter — no mocking required.
+- Rate limiting is skipped in non-production environments (`NODE_ENV !== 'production'`) — no mocking required.
 - Global setup (`globalSetup.ts`) creates the `subnet_management_test` database and runs `schema.sql`; global teardown drops it after all suites finish.
+
+---
+
+## E2E Tests (Frontend)
+
+End-to-end tests live in `frontend/e2e/` and use **Playwright** (Chromium) to drive a real browser against the running app.
+
+### Prerequisites
+
+Both servers must be reachable before running e2e tests. Playwright will start them automatically via `webServer` in `playwright.config.ts` if they are not already running:
+
+```bash
+# Terminal 1 — backend
+cd backend && npm run dev
+
+# Terminal 2 — frontend
+cd frontend && npm run dev
+```
+
+### Run
+
+```bash
+cd frontend
+npm run e2e           # run all e2e tests
+npm run e2e:report    # open the last HTML report
+```
+
+### What's covered
+
+| Spec | Tests |
+|------|-------|
+| `auth.spec.ts` | Redirect when unauthenticated; login/register forms; live password rules; duplicate email error; wrong password error; logout via navbar |
+| `subnets.spec.ts` | Create subnet; search by name; edit name; delete with confirmation; navigate to IP list |
+| `ips.spec.ts` | Add IP; out-of-range IP error; edit IP; delete IP; Network Info panel; back navigation |
+
+### Design notes
+
+- Each spec file registers its own unique user (email seeded with `Date.now()`) so specs never share database state.
+- Subnet/IP addresses are generated from a run-scoped seed so repeated runs do not produce duplicate-address conflicts.
+- Tests use semantic Playwright locators (`getByRole`, `getByPlaceholder`, `getByTitle`) — no `data-testid` attributes were added to the production code.
+- Modal confirm buttons are scoped to `.fixed.inset-0` (the modal overlay) to avoid ambiguity with same-named icon buttons in the table rows.
 
 ---
 
