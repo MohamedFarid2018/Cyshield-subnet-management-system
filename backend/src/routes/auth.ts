@@ -15,7 +15,7 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,128}$/;
 
 const registerSchema = Joi.object({
   email: Joi.string().email().required(),
@@ -24,7 +24,7 @@ const registerSchema = Joi.object({
     .required()
     .messages({
       'string.pattern.base':
-        'Password must be at least 8 characters and include an uppercase letter, a number, and a special character',
+        'Password must be 8–128 characters and include a lowercase letter, an uppercase letter, a number, and a special character',
     }),
 });
 

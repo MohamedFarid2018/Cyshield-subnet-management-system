@@ -1,11 +1,39 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Network, Eye, EyeOff } from 'lucide-react';
+import { Network, Eye, EyeOff, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+
+const SPECIAL = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/;
+
+const rules = [
+  { id: 'length',    label: 'At least 8 characters',          test: (v: string) => v.length >= 8 },
+  { id: 'lower',     label: 'One lowercase letter',            test: (v: string) => /[a-z]/.test(v) },
+  { id: 'upper',     label: 'One uppercase letter',            test: (v: string) => /[A-Z]/.test(v) },
+  { id: 'number',    label: 'One number',                      test: (v: string) => /\d/.test(v) },
+  { id: 'special',   label: 'One special character (!@#…)',    test: (v: string) => SPECIAL.test(v) },
+  { id: 'maxlength', label: 'No longer than 128 characters',  test: (v: string) => v.length <= 128 },
+];
+
+function PasswordRules({ value }: { value: string }) {
+  if (!value) return null;
+  return (
+    <ul className="mt-2 space-y-1">
+      {rules.map((r) => {
+        const ok = r.test(value);
+        return (
+          <li key={r.id} className={`flex items-center gap-1.5 text-xs ${ok ? 'text-green-600' : 'text-red-500'}`}>
+            {ok ? <Check size={12} /> : <X size={12} />}
+            {r.label}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email'),
@@ -17,9 +45,11 @@ const registerSchema = z.object({
   password: z
     .string()
     .min(8, 'At least 8 characters')
+    .max(128, 'No longer than 128 characters')
+    .regex(/[a-z]/, 'Must contain a lowercase letter')
     .regex(/[A-Z]/, 'Must contain an uppercase letter')
     .regex(/\d/, 'Must contain a number')
-    .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, 'Must contain a special character'),
+    .regex(SPECIAL, 'Must contain a special character'),
   confirm: z.string(),
 }).refine((d) => d.password === d.confirm, {
   message: "Passwords don't match",
@@ -37,6 +67,8 @@ export default function AuthPage() {
 
   const loginForm = useForm<LoginForm>({ resolver: zodResolver(loginSchema) });
   const registerForm = useForm<RegisterForm>({ resolver: zodResolver(registerSchema) });
+
+  const watchedPassword = useWatch({ control: registerForm.control, name: 'password', defaultValue: '' });
 
   async function onLogin(data: LoginForm) {
     try {
@@ -153,11 +185,7 @@ export default function AuthPage() {
                   {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-              {registerForm.formState.errors.password && (
-                <p className="text-red-500 text-xs mt-1">
-                  {registerForm.formState.errors.password.message}
-                </p>
-              )}
+              <PasswordRules value={watchedPassword} />
             </div>
 
             <div>
