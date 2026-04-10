@@ -128,6 +128,47 @@ npm run build
 
 ---
 
+## Testing
+
+Tests live in `backend/tests/` and use **Jest** + **ts-jest** + **Supertest** against a dedicated `subnet_management_test` database.
+
+### Setup
+
+The test runner automatically creates and tears down the test database — no manual steps needed. Just make sure MySQL is running and your `.env` has valid credentials.
+
+```bash
+cd backend
+npm test                    # all suites
+npm run test:unit           # unit tests only
+npm run test:integration    # integration tests only
+```
+
+### What's covered
+
+#### Unit tests (`tests/unit/`)
+
+| File | What it tests |
+|------|---------------|
+| `network.test.ts` | `isValidCIDR`, `isValidIPv4`, `ipBelongsToSubnet`, `subnetInfo` — 19 cases including edge cases like broadcast/network addresses, /32, /0, and host-bits-set CIDRs |
+| `validateEnv.test.ts` | `validateEnv()` — passes with all vars set, throws on each missing required var, throws on JWT secrets shorter than 32 chars |
+
+#### Integration tests (`tests/integration/`)
+
+| File | What it tests |
+|------|---------------|
+| `auth.test.ts` | Register (success, duplicate, weak password), login (success, wrong password, unknown email), HttpOnly cookie on login |
+| `subnets.test.ts` | Full CRUD — create/list/update/delete; pagination; search; access control (user sees own only, admin sees all, cross-user 403) |
+| `ips.test.ts` | Full CRUD — add/list/update/delete IPs; out-of-range/invalid IP (400); duplicate IP (409); cross-user 403; admin override |
+
+### Test design
+
+- Each test file starts with a `beforeEach` that truncates all tables and recreates three fresh users (`admin`, `user`, `otherUser`) to guarantee isolation.
+- A separate `tsconfig.test.json` extends the main config with `"types": ["jest", "node"]` and widens `rootDir` to include the `tests/` directory — the main `tsconfig.json` is unchanged so the production build is unaffected.
+- Rate limiting is bypassed in test mode (`NODE_ENV=test`) via the `skip` option on the limiter — no mocking required.
+- Global setup (`globalSetup.ts`) creates the `subnet_management_test` database and runs `schema.sql`; global teardown drops it after all suites finish.
+
+---
+
 ## API Reference
 
 ### Auth

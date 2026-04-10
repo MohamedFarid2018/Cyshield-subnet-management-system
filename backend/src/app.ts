@@ -29,7 +29,10 @@ app.use(
 
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
-app.use(morgan('combined'));
+// Suppress request logs during tests
+if (process.env.NODE_ENV !== 'test') {
+  app.use(morgan('combined'));
+}
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -45,11 +48,6 @@ app.get('/api/health', (_req, res) => {
 // 404 fallback
 app.use((_req, res) => {
   res.status(404).json({ message: 'Route not found' });
-});
-
-const PORT = Number(process.env.PORT) || 3000;
-app.listen(PORT, () => {
-  console.log(`[Server] Running on http://localhost:${PORT}`);
 });
 
 export default app;
