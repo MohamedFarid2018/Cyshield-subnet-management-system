@@ -139,6 +139,11 @@ export async function updateIP(req: AuthRequest, res: Response): Promise<void> {
     }
     const old = (rows as Record<string, unknown>[])[0];
 
+    if (old.CreatedBy !== userId && req.user!.role !== 'admin') {
+      res.status(403).json({ message: 'You do not have permission to update this IP' });
+      return;
+    }
+
     await pool.execute('UPDATE IPs SET IpAddress = ? WHERE IpId = ?', [IpAddress, ipId]);
     await logAudit(userId, 'UPDATE', 'IPs', Number(ipId), old, { IpAddress });
     res.json({ message: 'IP updated' });
@@ -160,6 +165,12 @@ export async function deleteIP(req: AuthRequest, res: Response): Promise<void> {
     );
     if ((rows as unknown[]).length === 0) {
       res.status(404).json({ message: 'IP not found' });
+      return;
+    }
+    const ip = (rows as Record<string, unknown>[])[0];
+
+    if (ip.CreatedBy !== userId && req.user!.role !== 'admin') {
+      res.status(403).json({ message: 'You do not have permission to delete this IP' });
       return;
     }
 

@@ -71,7 +71,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     );
 
     // Store refresh token (hashed) in DB
-    const hashedRefresh = await bcrypt.hash(refreshToken, 8);
+    const hashedRefresh = await bcrypt.hash(refreshToken, 12);
     await pool.execute(
       'UPDATE Users SET RefreshTokenHash = ? WHERE UserId = ?',
       [hashedRefresh, user.UserId]

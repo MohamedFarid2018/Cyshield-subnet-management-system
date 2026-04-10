@@ -5,12 +5,14 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 
+import { validateEnv } from './utils/validateEnv';
 import authRoutes from './routes/auth';
 import subnetRoutes from './routes/subnets';
 import ipRoutes from './routes/ips';
 import uploadRoutes from './routes/upload';
 
 dotenv.config();
+validateEnv();
 
 const app = express();
 

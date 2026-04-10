@@ -42,6 +42,11 @@ export async function uploadFile(req: AuthRequest, res: Response): Promise<void>
           rowIndex++;
           const currentRow = rowIndex;
 
+          if (rowIndex > 5000) {
+            results.push({ row: currentRow, status: 'error', message: 'Row limit of 5000 exceeded — remaining rows skipped' });
+            return;
+          }
+
           const subnetName = row.SubnetName?.trim();
           const subnetAddress = row.SubnetAddress?.trim();
           const ipAddress = row.IpAddress?.trim();

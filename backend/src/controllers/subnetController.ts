@@ -100,6 +100,11 @@ export async function updateSubnet(req: AuthRequest, res: Response): Promise<voi
     }
     const old = (rows as Record<string, unknown>[])[0];
 
+    if (old.CreatedBy !== userId && req.user!.role !== 'admin') {
+      res.status(403).json({ message: 'You do not have permission to update this subnet' });
+      return;
+    }
+
     await pool.execute(
       `UPDATE Subnets SET
         SubnetName = COALESCE(?, SubnetName),
@@ -126,6 +131,12 @@ export async function deleteSubnet(req: AuthRequest, res: Response): Promise<voi
     );
     if ((rows as unknown[]).length === 0) {
       res.status(404).json({ message: 'Subnet not found' });
+      return;
+    }
+    const subnet = (rows as Record<string, unknown>[])[0];
+
+    if (subnet.CreatedBy !== userId && req.user!.role !== 'admin') {
+      res.status(403).json({ message: 'You do not have permission to delete this subnet' });
       return;
     }
 

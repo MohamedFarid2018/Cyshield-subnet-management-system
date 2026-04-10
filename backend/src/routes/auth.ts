@@ -35,7 +35,7 @@ const loginSchema = Joi.object({
 
 router.post('/register', authLimiter, validate(registerSchema), register);
 router.post('/login', authLimiter, validate(loginSchema), login);
-router.post('/refresh', refresh);
+router.post('/refresh', authLimiter, refresh);
 router.post('/logout', authenticate, logout);
 
 export default router;
