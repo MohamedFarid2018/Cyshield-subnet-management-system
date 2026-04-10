@@ -62,8 +62,8 @@ export async function addIP(req: AuthRequest, res: Response): Promise<void> {
 export async function listIPs(req: AuthRequest, res: Response): Promise<void> {
   const subnetId = req.params.subnetId as string;
   const { page = '1', limit = '10', search = '' } = req.query as PaginationQuery;
-  const pageNum = Math.max(1, parseInt(page));
-  const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
   const offset = (pageNum - 1) * limitNum;
 
   try {
@@ -81,8 +81,8 @@ export async function listIPs(req: AuthRequest, res: Response): Promise<void> {
        LEFT JOIN Users u ON u.UserId = i.CreatedBy
        WHERE i.SubnetId = ? AND i.DeletedAt IS NULL AND i.IpAddress LIKE ?
        ORDER BY INET_ATON(i.IpAddress)
-       LIMIT ? OFFSET ?`,
-      [subnetId, searchParam, limitNum, offset]
+       LIMIT ${limitNum} OFFSET ${offset}`,
+      [subnetId, searchParam]
     );
 
     const [countRows] = await pool.execute(

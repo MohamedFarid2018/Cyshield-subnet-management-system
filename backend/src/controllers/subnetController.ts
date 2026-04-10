@@ -38,8 +38,8 @@ export async function createSubnet(req: AuthRequest, res: Response): Promise<voi
 
 export async function listSubnets(req: AuthRequest, res: Response): Promise<void> {
   const { page = '1', limit = '10', search = '' } = req.query as PaginationQuery;
-  const pageNum = Math.max(1, parseInt(page));
-  const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
   const offset = (pageNum - 1) * limitNum;
 
   try {
@@ -55,8 +55,8 @@ export async function listSubnets(req: AuthRequest, res: Response): Promise<void
          AND (s.SubnetName LIKE ? OR s.SubnetAddress LIKE ?)
        GROUP BY s.SubnetId
        ORDER BY s.CreatedAt DESC
-       LIMIT ? OFFSET ?`,
-      [searchParam, searchParam, limitNum, offset]
+       LIMIT ${limitNum} OFFSET ${offset}`,
+      [searchParam, searchParam]
     );
 
     const [countRows] = await pool.execute(
