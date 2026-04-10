@@ -17,17 +17,23 @@ A full-stack web application for managing subnets and their associated IP addres
 - **Search & Filter** — search subnets by name/address, filter IPs by address
 
 ### Security Bonuses
-| Feature | Detail |
-|---|---|
-| Rate limiting | `/auth/login` and `/auth/register` capped at 10 req / 15 min per IP |
-| Helmet.js | 15+ security HTTP headers (CSP, HSTS, X-Frame-Options, etc.) |
-| Refresh tokens | 15-min access token + 7-day rotating refresh token in HttpOnly cookie |
-| Audit log | Every create/update/delete stored in `AuditLogs` with old/new values as JSON |
-| Password policy | Min 8 chars, uppercase + number + special character required |
-| File validation | CSV-only, max 5 MB, per-row validation with error report |
-| Soft delete | Subnets and IPs are marked `DeletedAt`, never physically removed |
-| CORS | Restricted to configured frontend origin |
-| Parameterized queries | All SQL uses `mysql2` prepared statements — no raw string interpolation |
+| Feature | OWASP Category | Detail |
+|---|---|---|
+| Rate limiting | A07 | `/auth/login`, `/auth/register`, `/auth/refresh` capped at 10 req / 15 min per IP |
+| Helmet.js | A05 | 15+ security HTTP headers (CSP, HSTS, X-Frame-Options, etc.) |
+| Refresh tokens | A07 | 15-min access token + 7-day rotating refresh token in HttpOnly cookie |
+| Refresh token hashing | A02 | Refresh token stored as bcrypt hash (cost 12) in DB — not plaintext |
+| Audit log | A09 | Every create/update/delete stored in `AuditLogs` with old/new values as JSON |
+| Password policy | A07 | Min 8, max 128 chars — requires lowercase, uppercase, number, special character |
+| Live password checklist | A07 | Real-time per-rule feedback on register form (green/red indicators) |
+| File validation | A04 | CSV-only, max 5 MB, max 5,000 rows, per-row validation with error report |
+| Soft delete | A04 | Subnets and IPs marked `DeletedAt` — data retained for audit, invisible to API |
+| CORS | A05 | Restricted to configured frontend origin |
+| Parameterized queries | A03 | All SQL uses `mysql2` prepared statements — no string interpolation, no SQL injection |
+| IDOR protection | A01 | Users can only edit/delete their own subnets and IPs — admins bypass |
+| Ownership checks | A01 | Every mutating operation verifies `CreatedBy === userId` before proceeding |
+| Env var validation | A05 | App fails at startup if `JWT_SECRET`, `DB_PASSWORD`, etc. are missing or too short |
+| CSV row cap | A04 | Upload limited to 5,000 rows to prevent DoS via resource exhaustion |
 
 ### UX Bonuses
 - **Subnet IP calculator** — network/broadcast/first/last usable host info shown on IP list page
@@ -210,9 +216,24 @@ subnet-management/
 
 ---
 
-## Known Considerations
+## Security Notes
 
-- **Refresh token rotation** — the refresh token is hashed with bcrypt and stored in the `Users` table. Logging out from one device invalidates all sessions for that user (single active session per user by design).
+### OWASP Top 10 Coverage
+
+| OWASP | Risk | How it's addressed |
+|---|---|---|
+| A01 | Broken Access Control | IDOR checks — users can only mutate their own records; admins bypass |
+| A02 | Cryptographic Failures | bcrypt (cost 12) for passwords and refresh tokens; strong JWT secrets validated at boot |
+| A03 | Injection | All queries use parameterized statements — no raw SQL interpolation |
+| A04 | Insecure Design | CSV row cap (5,000), file size cap (5 MB), soft delete with audit trail |
+| A05 | Security Misconfiguration | Helmet.js headers, strict CORS, env var validation at startup |
+| A07 | Auth & Session Failures | Short-lived JWTs (15 min), rotating refresh tokens, rate limiting, strong password policy |
+| A09 | Logging & Monitoring | `AuditLogs` table records every write with user, timestamp, old/new values |
+
+### Known Considerations
+
+- **Refresh token rotation** — stored as a bcrypt hash in the `Users` table. Logging out invalidates all sessions for that user (single active session per user by design).
 - **Soft deletes** — records with `DeletedAt IS NOT NULL` are excluded from all queries but remain in the database for audit purposes.
 - **IP range validation** — when adding an IP, the API verifies the IP belongs to the parent subnet's CIDR block.
 - **Rate limiting** is in-memory (per process). For multi-process deployments, replace with a Redis-backed store (e.g. `rate-limit-redis`).
+- **LIMIT/OFFSET** — pagination values are validated integers inlined into SQL (not parameterized) due to a mysql2 v3 prepared-statement type constraint. User input still goes through `?` placeholders.
