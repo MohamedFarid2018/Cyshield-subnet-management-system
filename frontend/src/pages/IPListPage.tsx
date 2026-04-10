@@ -215,7 +215,7 @@ export default function IPListPage() {
                   <td className="px-4 py-3 font-mono text-gray-900">{ip.IpAddress}</td>
                   <td className="px-4 py-3 text-gray-500">{ip.CreatedByEmail}</td>
                   <td className="px-4 py-3 text-gray-500">
-                    {new Date(ip.CreatedAt).toLocaleString()}
+                    {new Date(ip.CreatedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 justify-end">
