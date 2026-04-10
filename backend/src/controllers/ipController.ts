@@ -14,7 +14,7 @@ async function getSubnet(subnetId: string) {
 }
 
 export async function addIP(req: AuthRequest, res: Response): Promise<void> {
-  const { subnetId } = req.params;
+  const subnetId = req.params.subnetId as string;
   const { IpAddress } = req.body;
   const userId = req.user!.userId;
 
@@ -60,7 +60,7 @@ export async function addIP(req: AuthRequest, res: Response): Promise<void> {
 }
 
 export async function listIPs(req: AuthRequest, res: Response): Promise<void> {
-  const { subnetId } = req.params;
+  const subnetId = req.params.subnetId as string;
   const { page = '1', limit = '10', search = '' } = req.query as PaginationQuery;
   const pageNum = Math.max(1, parseInt(page));
   const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
@@ -85,10 +85,11 @@ export async function listIPs(req: AuthRequest, res: Response): Promise<void> {
       [subnetId, searchParam, limitNum, offset]
     );
 
-    const [[{ total }]] = await pool.execute(
+    const [countRows] = await pool.execute(
       'SELECT COUNT(*) AS total FROM IPs WHERE SubnetId = ? AND DeletedAt IS NULL AND IpAddress LIKE ?',
       [subnetId, searchParam]
-    ) as [{ total: number }[][], unknown];
+    );
+    const total = (countRows as { total: number }[])[0].total;
 
     res.json({
       data: rows,
@@ -104,7 +105,8 @@ export async function listIPs(req: AuthRequest, res: Response): Promise<void> {
 }
 
 export async function updateIP(req: AuthRequest, res: Response): Promise<void> {
-  const { subnetId, ipId } = req.params;
+  const subnetId = req.params.subnetId as string;
+  const ipId = req.params.ipId as string;
   const { IpAddress } = req.body;
   const userId = req.user!.userId;
 
@@ -147,7 +149,8 @@ export async function updateIP(req: AuthRequest, res: Response): Promise<void> {
 }
 
 export async function deleteIP(req: AuthRequest, res: Response): Promise<void> {
-  const { subnetId, ipId } = req.params;
+  const subnetId = req.params.subnetId as string;
+  const ipId = req.params.ipId as string;
   const userId = req.user!.userId;
 
   try {

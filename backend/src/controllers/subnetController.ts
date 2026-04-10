@@ -59,11 +59,12 @@ export async function listSubnets(req: AuthRequest, res: Response): Promise<void
       [searchParam, searchParam, limitNum, offset]
     );
 
-    const [[{ total }]] = await pool.execute(
+    const [countRows] = await pool.execute(
       `SELECT COUNT(*) AS total FROM Subnets
        WHERE DeletedAt IS NULL AND (SubnetName LIKE ? OR SubnetAddress LIKE ?)`,
       [searchParam, searchParam]
-    ) as [{ total: number }[][], unknown];
+    );
+    const total = (countRows as { total: number }[])[0].total;
 
     res.json({
       data: rows,

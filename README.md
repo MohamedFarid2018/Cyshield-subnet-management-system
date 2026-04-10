@@ -48,10 +48,10 @@ A full-stack web application for managing subnets and their associated IP addres
 
 ```bash
 # Connect to MySQL and run the schema script
-mysql -u root -p < database/schema.sql
+mysql -u root -p < backend/database/schema.sql
 
 # Optional: load seed data (two demo accounts, password: Admin@123)
-mysql -u root -p < database/seed.sql
+mysql -u root -p < backend/database/seed.sql
 ```
 
 > MySQL version used during development: **8.0**
@@ -182,6 +182,9 @@ DMZ,10.0.0.0/28,
 ```
 subnet-management/
 ├── backend/
+│   ├── database/
+│   │   ├── schema.sql     # DDL for all tables
+│   │   └── seed.sql       # Optional demo data
 │   ├── src/
 │   │   ├── controllers/   # Route handlers
 │   │   ├── middleware/    # Auth, validation
@@ -202,9 +205,6 @@ subnet-management/
 │   │   └── App.tsx        # Router + providers
 │   ├── package.json
 │   └── vite.config.ts
-├── database/
-│   ├── schema.sql         # DDL for all tables
-│   └── seed.sql           # Optional demo data
 └── README.md
 ```
 
