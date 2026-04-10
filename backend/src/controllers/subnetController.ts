@@ -4,6 +4,14 @@ import { logAudit } from '../utils/audit';
 import { isValidCIDR, subnetInfo } from '../utils/network';
 import { AuthRequest, PaginationQuery } from '../types';
 
+function isAdmin(req: AuthRequest) {
+  return req.user!.role === 'admin';
+}
+
+function ownsRecord(req: AuthRequest, createdBy: unknown) {
+  return Number(createdBy) === Number(req.user!.userId);
+}
+
 export async function createSubnet(req: AuthRequest, res: Response): Promise<void> {
   const { SubnetName, SubnetAddress } = req.body;
   const userId = req.user!.userId;
@@ -41,9 +49,18 @@ export async function listSubnets(req: AuthRequest, res: Response): Promise<void
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
   const offset = (pageNum - 1) * limitNum;
+  const userId = req.user!.userId;
+  const admin = isAdmin(req);
 
   try {
     const searchParam = `%${search}%`;
+
+    // Admins see all subnets; regular users see only their own
+    const ownerFilter = admin ? '' : 'AND s.CreatedBy = ?';
+    const params = admin
+      ? [searchParam, searchParam]
+      : [searchParam, searchParam, userId];
+
     const [rows] = await pool.execute(
       `SELECT s.SubnetId, s.SubnetName, s.SubnetAddress, s.CreatedBy, s.CreatedAt,
               u.Email AS CreatedByEmail,
@@ -53,16 +70,19 @@ export async function listSubnets(req: AuthRequest, res: Response): Promise<void
        LEFT JOIN IPs i ON i.SubnetId = s.SubnetId AND i.DeletedAt IS NULL
        WHERE s.DeletedAt IS NULL
          AND (s.SubnetName LIKE ? OR s.SubnetAddress LIKE ?)
+         ${ownerFilter}
        GROUP BY s.SubnetId
        ORDER BY s.CreatedAt DESC
        LIMIT ${limitNum} OFFSET ${offset}`,
-      [searchParam, searchParam]
+      params
     );
 
     const [countRows] = await pool.execute(
-      `SELECT COUNT(*) AS total FROM Subnets
-       WHERE DeletedAt IS NULL AND (SubnetName LIKE ? OR SubnetAddress LIKE ?)`,
-      [searchParam, searchParam]
+      `SELECT COUNT(*) AS total FROM Subnets s
+       WHERE s.DeletedAt IS NULL
+         AND (s.SubnetName LIKE ? OR s.SubnetAddress LIKE ?)
+         ${ownerFilter}`,
+      params
     );
     const total = (countRows as { total: number }[])[0].total;
 
@@ -100,7 +120,7 @@ export async function updateSubnet(req: AuthRequest, res: Response): Promise<voi
     }
     const old = (rows as Record<string, unknown>[])[0];
 
-    if (old.CreatedBy !== userId && req.user!.role !== 'admin') {
+    if (!ownsRecord(req, old.CreatedBy) && !isAdmin(req)) {
       res.status(403).json({ message: 'You do not have permission to update this subnet' });
       return;
     }
@@ -135,16 +155,12 @@ export async function deleteSubnet(req: AuthRequest, res: Response): Promise<voi
     }
     const subnet = (rows as Record<string, unknown>[])[0];
 
-    if (subnet.CreatedBy !== userId && req.user!.role !== 'admin') {
+    if (!ownsRecord(req, subnet.CreatedBy) && !isAdmin(req)) {
       res.status(403).json({ message: 'You do not have permission to delete this subnet' });
       return;
     }
 
-    // Soft delete — cascade to IPs as well
-    await pool.execute(
-      'UPDATE Subnets SET DeletedAt = NOW() WHERE SubnetId = ?',
-      [id]
-    );
+    await pool.execute('UPDATE Subnets SET DeletedAt = NOW() WHERE SubnetId = ?', [id]);
     await pool.execute(
       'UPDATE IPs SET DeletedAt = NOW() WHERE SubnetId = ? AND DeletedAt IS NULL',
       [id]
@@ -172,6 +188,12 @@ export async function getSubnetInfo(req: AuthRequest, res: Response): Promise<vo
       return;
     }
     const subnet = (rows as Record<string, unknown>[])[0];
+
+    if (!ownsRecord(req, subnet.CreatedBy) && !isAdmin(req)) {
+      res.status(403).json({ message: 'You do not have permission to view this subnet' });
+      return;
+    }
+
     const info = subnetInfo(subnet.SubnetAddress as string);
     res.json({ ...subnet, networkInfo: info });
   } catch (err) {

@@ -4,6 +4,14 @@ import { logAudit } from '../utils/audit';
 import { isValidIPv4, ipBelongsToSubnet } from '../utils/network';
 import { AuthRequest, PaginationQuery } from '../types';
 
+function isAdmin(req: AuthRequest) {
+  return req.user!.role === 'admin';
+}
+
+function ownsRecord(req: AuthRequest, createdBy: unknown) {
+  return Number(createdBy) === Number(req.user!.userId);
+}
+
 async function getSubnet(subnetId: string) {
   const [rows] = await pool.execute(
     'SELECT * FROM Subnets WHERE SubnetId = ? AND DeletedAt IS NULL',
@@ -27,6 +35,12 @@ export async function addIP(req: AuthRequest, res: Response): Promise<void> {
     const subnet = await getSubnet(subnetId);
     if (!subnet) {
       res.status(404).json({ message: 'Subnet not found' });
+      return;
+    }
+
+    // Only subnet owner or admin can add IPs
+    if (!ownsRecord(req, subnet.CreatedBy) && !isAdmin(req)) {
+      res.status(403).json({ message: 'You do not have permission to add IPs to this subnet' });
       return;
     }
 
@@ -70,6 +84,12 @@ export async function listIPs(req: AuthRequest, res: Response): Promise<void> {
     const subnet = await getSubnet(subnetId);
     if (!subnet) {
       res.status(404).json({ message: 'Subnet not found' });
+      return;
+    }
+
+    // Non-admins can only view IPs of their own subnets
+    if (!ownsRecord(req, subnet.CreatedBy) && !isAdmin(req)) {
+      res.status(403).json({ message: 'You do not have permission to view IPs for this subnet' });
       return;
     }
 
@@ -139,7 +159,7 @@ export async function updateIP(req: AuthRequest, res: Response): Promise<void> {
     }
     const old = (rows as Record<string, unknown>[])[0];
 
-    if (old.CreatedBy !== userId && req.user!.role !== 'admin') {
+    if (!ownsRecord(req, old.CreatedBy) && !isAdmin(req)) {
       res.status(403).json({ message: 'You do not have permission to update this IP' });
       return;
     }
@@ -169,7 +189,7 @@ export async function deleteIP(req: AuthRequest, res: Response): Promise<void> {
     }
     const ip = (rows as Record<string, unknown>[])[0];
 
-    if (ip.CreatedBy !== userId && req.user!.role !== 'admin') {
+    if (!ownsRecord(req, ip.CreatedBy) && !isAdmin(req)) {
       res.status(403).json({ message: 'You do not have permission to delete this IP' });
       return;
     }
