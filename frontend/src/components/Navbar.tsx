@@ -18,7 +18,7 @@ export default function Navbar() {
       <div className="flex items-center gap-6">
         <Link to="/subnets" className="flex items-center gap-2 font-semibold text-blue-600">
           <Network size={20} />
-          SubnetManager
+          Subnet Manager
         </Link>
         <Link to="/subnets" className="text-sm text-gray-600 hover:text-blue-600">
           Subnets
