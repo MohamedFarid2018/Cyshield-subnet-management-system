@@ -210,7 +210,7 @@ export default function SubnetListPage() {
                   <td className="px-4 py-3 text-gray-600">{s.IpCount}</td>
                   <td className="px-4 py-3 text-gray-500">{s.CreatedByEmail}</td>
                   <td className="px-4 py-3 text-gray-500">
-                    {new Date(s.CreatedAt).toLocaleDateString()}
+                    {new Date(s.CreatedAt).toLocaleString()}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 justify-end">

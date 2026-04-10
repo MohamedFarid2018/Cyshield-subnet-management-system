@@ -99,7 +99,7 @@ export default function AuthPage() {
           <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mb-3">
             <Network className="text-white" size={24} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">SubnetManager</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Subnet Manager</h1>
           <p className="text-gray-500 text-sm mt-1">
             {mode === 'login' ? 'Sign in to your account' : 'Create a new account'}
           </p>
