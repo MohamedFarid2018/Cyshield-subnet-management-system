@@ -7,7 +7,7 @@ import { Network, Eye, EyeOff, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 
-const SPECIAL = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/;
+const SPECIAL = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/;
 
 const rules = [
   { id: 'length',    label: 'At least 8 characters',          test: (v: string) => v.length >= 8 },
