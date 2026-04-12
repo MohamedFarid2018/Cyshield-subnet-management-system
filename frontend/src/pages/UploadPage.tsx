@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { UploadCloud, FileText, CheckCircle, AlertCircle, SkipForward } from 'lucide-react';
+import { UploadCloud, FileText, CheckCircle, AlertCircle, SkipForward, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { uploadCSV } from '../api/upload';
 import type { UploadResponse } from '../types';
@@ -45,7 +45,25 @@ export default function UploadPage() {
       </p>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm text-gray-700">
-        <p className="font-medium text-blue-800 mb-2">Expected CSV format:</p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="font-medium text-blue-800">Expected CSV format:</p>
+          <button
+            onClick={() => {
+              const sample = `SubnetName,SubnetAddress,IpAddress\nOffice LAN,192.168.1.0/24,192.168.1.10\nOffice LAN,192.168.1.0/24,192.168.1.11\nDMZ,10.0.0.0/28,`;
+              const blob = new Blob([sample], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'sample.csv';
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="flex items-center gap-1.5 text-xs text-blue-700 hover:text-blue-900 border border-blue-300 rounded px-2 py-1 hover:bg-blue-100"
+          >
+            <Download size={12} />
+            Download sample
+          </button>
+        </div>
         <code className="block text-xs bg-white border border-blue-100 rounded p-2 font-mono whitespace-pre">
           {`SubnetName,SubnetAddress,IpAddress
 Office LAN,192.168.1.0/24,192.168.1.10
