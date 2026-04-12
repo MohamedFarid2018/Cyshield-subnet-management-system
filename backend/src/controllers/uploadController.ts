@@ -32,102 +32,110 @@ export async function uploadFile(req: AuthRequest, res: Response): Promise<void>
   // Cache subnets created during this upload to avoid repeated DB lookups
   const subnetCache: Record<string, number> = {};
 
-  const processRows = (): Promise<void> =>
+  // Step 1: collect all rows from the stream synchronously
+  const collectRows = (): Promise<CsvRow[]> =>
     new Promise((resolve, reject) => {
+      const rows: CsvRow[] = [];
       const stream = Readable.from(req.file!.buffer);
-
       stream
         .pipe(csv({ strict: false }))
-        .on('data', async (row: CsvRow) => {
-          rowIndex++;
-          const currentRow = rowIndex;
-
-          if (rowIndex > 5000) {
-            results.push({ row: currentRow, status: 'error', message: 'Row limit of 5000 exceeded — remaining rows skipped' });
-            return;
-          }
-
-          const subnetName = row.SubnetName?.trim();
-          const subnetAddress = row.SubnetAddress?.trim();
-          const ipAddress = row.IpAddress?.trim();
-
-          if (!subnetAddress) {
-            results.push({ row: currentRow, status: 'error', message: 'SubnetAddress is required' });
-            return;
-          }
-
-          if (!isValidCIDR(subnetAddress)) {
-            results.push({ row: currentRow, status: 'error', message: `Invalid CIDR: ${subnetAddress}` });
-            return;
-          }
-
-          try {
-            // Get or create subnet
-            let subnetId = subnetCache[subnetAddress];
-
-            if (!subnetId) {
-              const [existingRows] = await pool.execute(
-                'SELECT SubnetId FROM Subnets WHERE SubnetAddress = ? AND DeletedAt IS NULL',
-                [subnetAddress]
-              );
-              const existing = existingRows as { SubnetId: number }[];
-
-              if (existing.length > 0) {
-                subnetId = existing[0].SubnetId;
-              } else {
-                const name = subnetName || subnetAddress;
-                const [insertResult] = await pool.execute(
-                  'INSERT INTO Subnets (SubnetName, SubnetAddress, CreatedBy) VALUES (?, ?, ?)',
-                  [name, subnetAddress, userId]
-                );
-                subnetId = (insertResult as { insertId: number }).insertId;
-                await logAudit(userId, 'CREATE', 'Subnets', subnetId, undefined, { SubnetName: name, SubnetAddress: subnetAddress });
-              }
-              subnetCache[subnetAddress] = subnetId;
-            }
-
-            // Handle IP if provided
-            if (ipAddress) {
-              if (!isValidIPv4(ipAddress)) {
-                results.push({ row: currentRow, status: 'error', message: `Invalid IP address: ${ipAddress}` });
-                return;
-              }
-
-              if (!ipBelongsToSubnet(ipAddress, subnetAddress)) {
-                results.push({
-                  row: currentRow,
-                  status: 'error',
-                  message: `IP ${ipAddress} does not belong to subnet ${subnetAddress}`,
-                });
-                return;
-              }
-
-              const [ipExisting] = await pool.execute(
-                'SELECT IpId FROM IPs WHERE IpAddress = ? AND SubnetId = ? AND DeletedAt IS NULL',
-                [ipAddress, subnetId]
-              );
-              if ((ipExisting as unknown[]).length > 0) {
-                results.push({ row: currentRow, status: 'skipped', message: `IP ${ipAddress} already exists` });
-                return;
-              }
-
-              const [ipResult] = await pool.execute(
-                'INSERT INTO IPs (IpAddress, SubnetId, CreatedBy) VALUES (?, ?, ?)',
-                [ipAddress, subnetId, userId]
-              );
-              const ipId = (ipResult as { insertId: number }).insertId;
-              await logAudit(userId, 'CREATE', 'IPs', ipId, undefined, { IpAddress: ipAddress, SubnetId: subnetId });
-              results.push({ row: currentRow, status: 'success', message: 'IP added', data: { subnetId, ipId, ipAddress } });
-            } else {
-              results.push({ row: currentRow, status: 'success', message: 'Subnet processed', data: { subnetId, subnetAddress } });
-            }
-          } catch (err) {
-            results.push({ row: currentRow, status: 'error', message: 'Database error on this row' });
-          }
-        })
-        .on('end', resolve)
+        .on('data', (row: CsvRow) => rows.push(row))
+        .on('end', () => resolve(rows))
         .on('error', reject);
     });
+
+  // Step 2: process each row sequentially with full async/await support
+  const processRows = async (): Promise<void> => {
+    const rows = await collectRows();
+
+    for (const row of rows) {
+      rowIndex++;
+      const currentRow = rowIndex;
+
+      if (rowIndex > 5000) {
+        results.push({ row: currentRow, status: 'error', message: 'Row limit of 5000 exceeded — remaining rows skipped' });
+        break;
+      }
+
+      const subnetName = row.SubnetName?.trim();
+      const subnetAddress = row.SubnetAddress?.trim();
+      const ipAddress = row.IpAddress?.trim();
+
+      if (!subnetAddress) {
+        results.push({ row: currentRow, status: 'error', message: 'SubnetAddress is required' });
+        continue;
+      }
+
+      if (!isValidCIDR(subnetAddress)) {
+        results.push({ row: currentRow, status: 'error', message: `Invalid CIDR: ${subnetAddress}` });
+        continue;
+      }
+
+      try {
+        // Get or create subnet
+        let subnetId = subnetCache[subnetAddress];
+
+        if (!subnetId) {
+          const [existingRows] = await pool.execute(
+            'SELECT SubnetId FROM Subnets WHERE SubnetAddress = ? AND DeletedAt IS NULL',
+            [subnetAddress]
+          );
+          const existing = existingRows as { SubnetId: number }[];
+
+          if (existing.length > 0) {
+            subnetId = existing[0].SubnetId;
+          } else {
+            const name = subnetName || subnetAddress;
+            const [insertResult] = await pool.execute(
+              'INSERT INTO Subnets (SubnetName, SubnetAddress, CreatedBy) VALUES (?, ?, ?)',
+              [name, subnetAddress, userId]
+            );
+            subnetId = (insertResult as { insertId: number }).insertId;
+            await logAudit(userId, 'CREATE', 'Subnets', subnetId, undefined, { SubnetName: name, SubnetAddress: subnetAddress });
+          }
+          subnetCache[subnetAddress] = subnetId;
+        }
+
+        // Handle IP if provided
+        if (ipAddress) {
+          if (!isValidIPv4(ipAddress)) {
+            results.push({ row: currentRow, status: 'error', message: `Invalid IP address: ${ipAddress}` });
+            continue;
+          }
+
+          if (!ipBelongsToSubnet(ipAddress, subnetAddress)) {
+            results.push({
+              row: currentRow,
+              status: 'error',
+              message: `IP ${ipAddress} does not belong to subnet ${subnetAddress}`,
+            });
+            continue;
+          }
+
+          const [ipExisting] = await pool.execute(
+            'SELECT IpId FROM IPs WHERE IpAddress = ? AND SubnetId = ? AND DeletedAt IS NULL',
+            [ipAddress, subnetId]
+          );
+          if ((ipExisting as unknown[]).length > 0) {
+            results.push({ row: currentRow, status: 'skipped', message: `IP ${ipAddress} already exists` });
+            continue;
+          }
+
+          const [ipResult] = await pool.execute(
+            'INSERT INTO IPs (IpAddress, SubnetId, CreatedBy) VALUES (?, ?, ?)',
+            [ipAddress, subnetId, userId]
+          );
+          const ipId = (ipResult as { insertId: number }).insertId;
+          await logAudit(userId, 'CREATE', 'IPs', ipId, undefined, { IpAddress: ipAddress, SubnetId: subnetId });
+          results.push({ row: currentRow, status: 'success', message: 'IP added', data: { subnetId, ipId, ipAddress } });
+        } else {
+          results.push({ row: currentRow, status: 'success', message: 'Subnet processed', data: { subnetId, subnetAddress } });
+        }
+      } catch (err) {
+        results.push({ row: currentRow, status: 'error', message: 'Database error on this row' });
+      }
+    }
+  };
 
   try {
     await processRows();
