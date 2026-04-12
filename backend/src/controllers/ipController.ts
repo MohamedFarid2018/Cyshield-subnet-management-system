@@ -95,7 +95,7 @@ export async function listIPs(req: AuthRequest, res: Response): Promise<void> {
 
     const searchParam = `%${search}%`;
     const [rows] = await pool.execute(
-      `SELECT i.IpId, i.IpAddress, i.SubnetId, i.CreatedBy, i.CreatedAt,
+      `SELECT i.IpId, i.IpAddress, i.SubnetId, i.CreatedBy, i.CreatedAt, i.UpdatedAt,
               u.Email AS CreatedByEmail
        FROM IPs i
        LEFT JOIN Users u ON u.UserId = i.CreatedBy

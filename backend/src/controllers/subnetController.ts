@@ -62,7 +62,7 @@ export async function listSubnets(req: AuthRequest, res: Response): Promise<void
       : [searchParam, searchParam, userId];
 
     const [rows] = await pool.execute(
-      `SELECT s.SubnetId, s.SubnetName, s.SubnetAddress, s.CreatedBy, s.CreatedAt,
+      `SELECT s.SubnetId, s.SubnetName, s.SubnetAddress, s.CreatedBy, s.CreatedAt, s.UpdatedAt,
               u.Email AS CreatedByEmail,
               COUNT(i.IpId) AS IpCount
        FROM Subnets s

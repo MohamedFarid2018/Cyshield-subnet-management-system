@@ -186,6 +186,7 @@ export default function SubnetListPage() {
               <th className="text-left px-4 py-3 font-medium text-gray-600">IPs</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Created By</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Created</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Updated</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -211,6 +212,11 @@ export default function SubnetListPage() {
                   <td className="px-4 py-3 text-gray-500">{s.CreatedByEmail}</td>
                   <td className="px-4 py-3 text-gray-500">
                     {new Date(s.CreatedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                  </td>
+                  <td className="px-4 py-3 text-gray-500">
+                    {s.UpdatedAt
+                      ? new Date(s.UpdatedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+                      : '—'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 justify-end">

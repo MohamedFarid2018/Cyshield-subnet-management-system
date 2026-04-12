@@ -11,6 +11,7 @@ export interface Subnet {
   CreatedBy: number;
   CreatedByEmail: string;
   CreatedAt: string;
+  UpdatedAt: string | null;
   IpCount: number;
 }
 
@@ -21,6 +22,7 @@ export interface IP {
   CreatedBy: number;
   CreatedByEmail: string;
   CreatedAt: string;
+  UpdatedAt: string | null;
 }
 
 export interface PaginatedResponse<T> {
